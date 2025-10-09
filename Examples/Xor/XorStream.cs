@@ -47,8 +47,8 @@ public class XorStream : Stream
         for (int i = 0; i < bytesRead; i++)
         {
             var xorByte = xorBuffer[i];
-            xorByte = byte.RotateLeft(xorByte, GetRotateAmount(i));
-            buffer[offset + i] = (byte)(xorByte ^ GetPatternByte(i));
+            xorByte = byte.RotateLeft(xorByte, GetRotateAmount(0));
+            buffer[offset + i] = (byte)(xorByte ^ GetPatternByte(0));
         }
 
         return bytesRead;
@@ -59,8 +59,8 @@ public class XorStream : Stream
         byte[] xorBuffer = new byte[count];
         for (int i = 0; i < count; i++)
         {
-            var xorByte = (byte)(buffer[offset + i] ^ GetPatternByte(i));
-            xorByte = byte.RotateRight(xorByte, GetRotateAmount(i));
+            var xorByte = (byte)(buffer[offset + i] ^ GetPatternByte(0));
+            xorByte = byte.RotateRight(xorByte, GetRotateAmount(0));
             xorBuffer[i] = xorByte;
         }
 

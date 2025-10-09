@@ -300,22 +300,22 @@ public class S5Server
 
         if (clientDecodingStream != clientStream)
         {
-            await clientDecodingStream.DisposeAsync();
+            clientDecodingStream.Dispose();
         }
         
         if (clientEncodingStream != clientStream)
         {
-            await clientEncodingStream.DisposeAsync();
+            clientEncodingStream.Dispose();
         }
 
         if (upstreamDecodingStream != upstreamStream)
         {
-            await upstreamDecodingStream.DisposeAsync();
+            upstreamDecodingStream.Dispose();
         }
 
         if (upstreamEncodingStream != upstreamStream)
         {
-            await upstreamEncodingStream.DisposeAsync();
+            upstreamEncodingStream.Dispose();
         }
     }
 
