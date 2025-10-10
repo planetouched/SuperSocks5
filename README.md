@@ -1,7 +1,7 @@
 # SuperSocks5
 Socks5 server and client with UDP support
 
--Full asynchronously
+-Full asynchronously  
 -Support of Chain/Cascade proxying.
 -Routing. You can choose next proxy at runtime depending on you rules. see example
 -UDP support
