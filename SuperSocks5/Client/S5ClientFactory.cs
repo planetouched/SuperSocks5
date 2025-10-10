@@ -1,5 +1,5 @@
-﻿using SuperSocks5.Settings;
-using SuperSocks5.Shared;
+﻿using SuperSocks5.Shared;
+using SuperSocks5.Shared.Settings;
 using System.Net;
 using System.Net.Sockets;
 

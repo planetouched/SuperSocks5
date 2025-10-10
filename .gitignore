@@ -1,4 +1,13 @@
 /.vs/
 /obj/
-/bin/
-
+UserData/
+/bin/Debug/
+/bin/Debug/net9.0/Logs/
+/bin/Release/net9.0/config.json
+/bin/Debug/net9.0/config.json
+/SuperSocks5/.vs/
+/SuperSocks5/bin/
+/SuperSocks5/obj/
+/Tests/.vs/
+/Tests/bin
+/Tests/obj

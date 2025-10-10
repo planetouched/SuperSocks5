@@ -2,7 +2,7 @@
 using SuperSocks5.Shared.Encryption._Base;
 using SuperSocks5.Shared.Encryption.None;
 
-namespace SuperSocks5.Settings;
+namespace SuperSocks5.Shared.Settings;
 
 public class S5Settings
 {

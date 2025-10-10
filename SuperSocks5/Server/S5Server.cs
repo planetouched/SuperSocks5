@@ -1,9 +1,9 @@
-﻿using SuperSocks5.Settings;
-using SuperSocks5.Shared;
+﻿using SuperSocks5.Shared;
 using System.Net;
 using System.Net.Sockets;
 using SuperSocks5.Shared.Encryption._Base;
 using SuperSocks5.Shared.Encryption.None;
+using SuperSocks5.Shared.Settings;
 
 namespace SuperSocks5.Server;
 

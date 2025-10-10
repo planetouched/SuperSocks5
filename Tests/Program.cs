@@ -1,6 +1,7 @@
 ﻿using SuperSocks5.Examples;
+using Tests.Examples;
 
-namespace SuperSocks5
+namespace Tests
 {
     internal class Program
     {

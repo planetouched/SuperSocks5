@@ -1,8 +1,8 @@
 ﻿using System.Net;
-using SuperSocks5.Settings;
 using System.Net.Sockets;
 using System.Text;
 using SuperSocks5.Shared.Encryption._Base;
+using SuperSocks5.Shared.Settings;
 
 namespace SuperSocks5.Shared;
 

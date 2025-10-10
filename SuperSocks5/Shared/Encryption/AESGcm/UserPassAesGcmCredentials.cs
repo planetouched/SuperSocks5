@@ -4,7 +4,7 @@ using SuperSocks5.Shared.Encryption._Base;
 
 namespace SuperSocks5.Shared.Encryption.AESGcm
 {
-    class UserPassAesGcmCredentials : AuthCredentialsBase
+    public class UserPassAesGcmCredentials : AuthCredentialsBase
     {
         public string Username { get; }
         public string Password { get; }

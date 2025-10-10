@@ -1,15 +1,15 @@
-﻿using SuperSocks5.Server;
-using SuperSocks5.Settings;
-using System.Net;
+﻿using System.Net;
 using System.Text;
 using SuperSocks5.Client;
 using SuperSocks5.Examples.Xor;
+using SuperSocks5.Server;
 using SuperSocks5.Shared;
 using SuperSocks5.Shared.Encryption._Base;
-using SuperSocks5.Shared.Encryption.None;
 using SuperSocks5.Shared.Encryption.AESGcm;
+using SuperSocks5.Shared.Encryption.None;
+using SuperSocks5.Shared.Settings;
 
-namespace SuperSocks5.Examples
+namespace Tests.Examples
 {
     static class TcpProxyChain
     {
