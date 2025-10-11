@@ -26,7 +26,12 @@ namespace Tests.Examples
             if (credType == "aes")
             {
                 var aesKey = Convert.FromHexString("A5F697E5D7416EBED99E8EC7031B63E2F7DB1C4284CE7E2DD3FD0D2935A662F6");
-                return new UserPassAesGcmCredentials("user", "password", aesKey);
+                return new AesGcmUserPassCredentials("user", "password", aesKey);
+            }
+            if (credType == "aesTime")
+            {
+                var aesKey = Convert.FromHexString("A5F697E5D7416EBED99E8EC7031B63E2F7DB1C4284CE7E2DD3FD0D2935A662F6");
+                return new AesGcmKeyTimeCredentials("superkey", aesKey);
             }
 
             return new NoneCredentials();
@@ -36,7 +41,7 @@ namespace Tests.Examples
         {
             var serverSettings = new S5Settings();
             
-            serverSettings.ResponseAuths.Add(GetCreds("aes"));
+            serverSettings.ResponseAuths.Add(GetCreds("aesTime"));
             serverSettings.RequestAuths.Add(GetCreds("aes"));
             
             serverSettings.UpstreamProxy = new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1083); //to next proxy
@@ -64,7 +69,7 @@ namespace Tests.Examples
             await Task.Delay(500);
 
             var clientSettings = new S5Settings();
-            clientSettings.RequestAuths.Add(GetCreds("aes"));
+            clientSettings.RequestAuths.Add(GetCreds("aesTime"));
 
             var uri = new Uri("http://example.com");
             string requestString = $"GET {uri.AbsolutePath} HTTP/1.1\r\n" +

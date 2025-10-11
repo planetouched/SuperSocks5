@@ -29,7 +29,7 @@ namespace SuperSocks5.Shared.Encryption.AESGcm
 
         public static byte[] EncodeBytes(byte[] bytes, byte[] key)
         {
-            byte[] nonce = GenerateNonce(key);
+            var nonce = GenerateNonce(key);
 
             // Prepare output buffers
             byte[] ciphertext = new byte[bytes.Length];

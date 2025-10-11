@@ -16,7 +16,7 @@ namespace SuperSocks5.Client
             await tcpClient.ConnectAsync(proxy, token);
             var stream = tcpClient.GetStream();
 
-            var pair = await S5Protocol.SendHandshakeAsync(stream, settings, token);
+            var pair = await S5Protocol.SendHandshakeAsync(stream, settings.RequestAuths, token);
 
             if (pair.success)
             {

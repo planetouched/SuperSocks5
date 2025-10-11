@@ -25,7 +25,12 @@ namespace Tests.Examples
             if (credType == "aes")
             {
                 var aesKey = Convert.FromHexString("A5F697E5D7416EBED99E8EC7031B63E2F7DB1C4284CE7E2DD3FD0D2935A662F6");
-                return new UserPassAesGcmCredentials("user", "password", aesKey);
+                return new AesGcmUserPassCredentials("user", "password", aesKey);
+            }
+            if (credType == "aesTime")
+            {
+                var aesKey = Convert.FromHexString("A5F697E5D7416EBED99E8EC7031B63E2F7DB1C4284CE7E2DD3FD0D2935A662F6");
+                return new AesGcmKeyTimeCredentials("superkey", aesKey);
             }
 
             return new NoneCredentials();

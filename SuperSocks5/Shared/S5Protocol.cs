@@ -261,7 +261,7 @@ public static class S5Protocol
         return backPacket;
     }
 
-    public static async Task<(bool success, EncryptionBase? encryption)> ResponseHandshakeAsync(NetworkStream stream, S5Settings settings, CancellationToken token)
+    public static async Task<(bool success, EncryptionBase? encryption)> ResponseHandshakeAsync(NetworkStream stream, IList<AuthCredentialsBase> responseAuths, CancellationToken token)
     {
         /*
         +----+----------+----------+
@@ -305,11 +305,11 @@ public static class S5Protocol
         for (int r = methods.Length - 1; r >= 0; r--)
         {
             var authType = methods[r];
-            for (int i = settings.ResponseAuths.Count - 1; i >= 0; i--)
+            for (int i = responseAuths.Count - 1; i >= 0; i--)
             {
-                if (authType == settings.ResponseAuths[i].AuthType)
+                if (authType == responseAuths[i].AuthType)
                 {
-                    selectedAuth = settings.ResponseAuths[i];
+                    selectedAuth = responseAuths[i];
                     authMethod = authType;
                     break;
                 }
@@ -343,7 +343,7 @@ public static class S5Protocol
         return (await selectedAuth.Validate(stream, token), selectedAuth.GetEncryption());
     }
 
-    public static async Task<(bool success, EncryptionBase? encryption)> SendHandshakeAsync(NetworkStream stream, S5Settings settings, CancellationToken token)
+    public static async Task<(bool success, EncryptionBase? encryption)> SendHandshakeAsync(NetworkStream stream, IList<AuthCredentialsBase> requestAuths, CancellationToken token)
     {
         /*
         +----+----------+----------+
@@ -353,13 +353,13 @@ public static class S5Protocol
         +----+----------+----------+
         */
 
-        var handshake = new byte[2 + settings.RequestAuths.Count];
+        var handshake = new byte[2 + requestAuths.Count];
         handshake[0] = S5Const.Version;
-        handshake[1] = (byte)settings.RequestAuths.Count;
+        handshake[1] = (byte)requestAuths.Count;
 
-        for (int i = 0; i < settings.RequestAuths.Count; i++)
+        for (int i = 0; i < requestAuths.Count; i++)
         {
-            handshake[2 + i] = settings.RequestAuths[i].AuthType;
+            handshake[2 + i] = requestAuths[i].AuthType;
         }
 
         await stream.WriteAsync(handshake, 0, handshake.Length, token);
@@ -388,7 +388,7 @@ public static class S5Protocol
 
         AuthCredentialsBase? creds = null;
 
-        foreach (var method in settings.RequestAuths)
+        foreach (var method in requestAuths)
         {
             if (method.AuthType == handshakeResponse[1])
             {

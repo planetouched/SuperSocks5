@@ -15,7 +15,7 @@ public class S5Server
     private readonly S5Settings _settings;
 
     public CancellationTokenSource Cts { get; } = new();
-    public event Func<S5Packet, CancellationToken, Task<IPEndPoint>>? OnRedirect;
+    public event Func<S5Packet, CancellationToken, Task<(IPEndPoint? endPoint, IList<AuthCredentialsBase> requestAuths)>> OnRedirect;
 
     public S5Server(IPAddress ipAddress, int port, S5Settings settings)
     {
@@ -76,7 +76,7 @@ public class S5Server
             using (client)
             {
                 var clientStream = client.GetStream();
-                var pair = await S5Protocol.ResponseHandshakeAsync(clientStream, _settings, token);
+                var pair = await S5Protocol.ResponseHandshakeAsync(clientStream, _settings.ResponseAuths, token);
                 
                 if (!pair.success)
                 {
@@ -105,17 +105,17 @@ public class S5Server
 
                 if (OnRedirect != null)
                 {
-                    var upstreamEndPoint = await OnRedirect.Invoke(packet, token);
+                    var redirectResult = await OnRedirect.Invoke(packet, token);
 
-                    if (upstreamEndPoint != null)
+                    if (redirectResult.endPoint != null)
                     {
                         if (packet.Command == S5Const.CmdConnect)
                         {
-                            await ToSocks5Async(upstreamEndPoint, packet, clientStream, prevEncryption);
+                            await ToSocks5Async(redirectResult.endPoint, packet, clientStream, redirectResult.requestAuths, prevEncryption);
                         }
                         else if (packet.Command == S5Const.CmdUdpAssociate)
                         {
-                            await ToSocks5UdpAsync(upstreamEndPoint, client, prevEncryption);
+                            await ToSocks5UdpAsync(redirectResult.endPoint, client, redirectResult.requestAuths, prevEncryption);
                         }
                     }
                     else
@@ -136,11 +136,11 @@ public class S5Server
                     {
                         if (packet.Command == S5Const.CmdConnect)
                         {
-                            await ToSocks5Async(_settings.UpstreamProxy, packet, clientStream, prevEncryption);
+                            await ToSocks5Async(_settings.UpstreamProxy, packet, clientStream, _settings.RequestAuths, prevEncryption);
                         }
                         else if (packet.Command == S5Const.CmdUdpAssociate)
                         {
-                            await ToSocks5UdpAsync(_settings.UpstreamProxy, client, prevEncryption);
+                            await ToSocks5UdpAsync(_settings.UpstreamProxy, client, _settings.RequestAuths, prevEncryption);
                         }
                     }
                     else
@@ -183,7 +183,7 @@ public class S5Server
         }
     }
 
-    public async Task ToSocks5UdpAsync(IPEndPoint upstreamEndPoint, TcpClient client, EncryptionBase prevEncryption)
+    public async Task ToSocks5UdpAsync(IPEndPoint upstreamEndPoint, TcpClient client, IList<AuthCredentialsBase> requestAuths, EncryptionBase prevEncryption)
     {
         var clientStream = client.GetStream();
 
@@ -200,7 +200,7 @@ public class S5Server
             await upstreamClient.ConnectAsync(upstreamEndPoint, token);
             var upstreamStream = upstreamClient.GetStream();
 
-            var pair = await S5Protocol.SendHandshakeAsync(upstreamStream, _settings, token);
+            var pair = await S5Protocol.SendHandshakeAsync(upstreamStream, requestAuths, token);
 
             if (pair.success)
             {
@@ -225,7 +225,7 @@ public class S5Server
 
     #region TCP
 
-    public async Task ToSocks5Async(IPEndPoint upstreamEndPoint, S5Packet packet, NetworkStream clientStream, EncryptionBase prevEncryption)
+    public async Task ToSocks5Async(IPEndPoint upstreamEndPoint, S5Packet packet, NetworkStream clientStream, IList<AuthCredentialsBase> requestAuths, EncryptionBase prevEncryption)
     {
         var token = Cts.Token;
 
@@ -234,7 +234,7 @@ public class S5Server
             await upstreamClient.ConnectAsync(upstreamEndPoint, token);
             var upstreamStream = upstreamClient.GetStream();
 
-            var pair = await S5Protocol.SendHandshakeAsync(upstreamStream, _settings, token);
+            var pair = await S5Protocol.SendHandshakeAsync(upstreamStream, requestAuths, token);
             if (pair.success)
             {
                 var nextEncryption = pair.encryption;
