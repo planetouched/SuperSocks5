@@ -30,7 +30,7 @@ namespace Tests.Examples
             if (credType == "aesTime")
             {
                 var aesKey = Convert.FromHexString("A5F697E5D7416EBED99E8EC7031B63E2F7DB1C4284CE7E2DD3FD0D2935A662F6");
-                return new AesGcmKeyTimeCredentials("superkey", aesKey);
+                return new AesGcmKeyTimeCredentials("superkey", aesKey, 5000);
             }
 
             return new NoneCredentials();
@@ -49,7 +49,7 @@ namespace Tests.Examples
             var server1Settings = new S5Settings();
             
             server1Settings.ResponseAuths.Add(GetCreds(credType));
-            server1Settings.RequestAuths.Add(GetCreds(credType));
+            //server1Settings.RequestAuths.Add(GetCreds(credType));
             
             var server1 = new S5Server(IPAddress.Any, 1093, server1Settings);
             server1.OnRedirect += ServerOnOnRedirect1; //redirect method see below...
@@ -109,10 +109,12 @@ namespace Tests.Examples
             await Test("aes");
         }
 
-        private static async Task<IPEndPoint> ServerOnOnRedirect1(S5Packet packet, CancellationToken token)
+        private static async Task<(IPEndPoint?, IList<AuthCredentialsBase>)> ServerOnOnRedirect1(S5Packet packet, CancellationToken token)
         {
             //analyze packet for routing and choosing next proxy
-            return new(new IPAddress([127, 0, 0, 1]), 1094);
+            var requestAuths = new List<AuthCredentialsBase> { GetCreds("aes") };
+
+            return (new(IPAddress.Parse("127.0.0.1"), 1084), requestAuths);
         }
     }
 }
