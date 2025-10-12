@@ -87,14 +87,18 @@ public class S5Server
 
                 var packet = await S5Protocol.ResponseRequestAsync(clientStream, prevEncryption, token);
 
-                var endPoint = packet.GetEndPoint();
-                if (endPoint != null)
+                if (S5Settings.DebugInfo)
                 {
-                    Console.WriteLine($"-> {endPoint}, encryption: {prevEncryption.Name}");
-                }
-                else if (!string.IsNullOrEmpty(packet.TargetHost))
-                {
-                    Console.WriteLine($"-> {packet.TargetHost}:{packet.TargetPort}, encryption: {prevEncryption.Name}");
+                    var endPoint = packet.GetEndPoint();
+
+                    if (endPoint != null)
+                    {
+                        Console.WriteLine($"{endPoint}, encryption: {prevEncryption.Name}");
+                    }
+                    else if (!string.IsNullOrEmpty(packet.TargetHost))
+                    {
+                        Console.WriteLine($"{packet.TargetHost}:{packet.TargetPort}, encryption: {prevEncryption.Name}");
+                    }
                 }
 
                 if (packet.Error != S5Const.NoError)
@@ -174,12 +178,20 @@ public class S5Server
         using (var udpTunnel = new UdpTunnel(null, prevEncryption, new NoEncryption()))
         {
             await S5Protocol.SendOpResultAsync(clientStream, prevEncryption, 0, _serverIpAddress, udpTunnel.Port, token);
-            Console.WriteLine($"Open UDP tunnel {_serverIpAddress}:{udpTunnel.Port}");
+
+            if (S5Settings.DebugInfo)
+            {
+                Console.WriteLine($"Open UDP tunnel {_serverIpAddress}:{udpTunnel.Port}");
+            }
 
             //wait disconnect
             var checkBuffer = new byte[1];
             _ = await clientStream.ReadAsync(checkBuffer, 0, 1, token);
-            Console.WriteLine($"Close UDP tunnel {_serverIpAddress}:{udpTunnel.Port}");
+
+            if (S5Settings.DebugInfo)
+            {
+                Console.WriteLine($"Close UDP tunnel {_serverIpAddress}:{udpTunnel.Port}");
+            }
         }
     }
 
@@ -210,12 +222,20 @@ public class S5Server
                 using (var udpTunnel = new UdpTunnel(udpBackPacket.GetEndPoint(), prevEncryption, nextEncryption))
                 {
                     await S5Protocol.SendOpResultAsync(clientStream, prevEncryption, 0, _serverIpAddress, udpTunnel.Port, token);
-                    Console.WriteLine($"Open UDP tunnel {_serverIpAddress}:{udpTunnel.Port}");
+
+                    if (S5Settings.DebugInfo)
+                    {
+                        Console.WriteLine($"Open UDP tunnel {_serverIpAddress}:{udpTunnel.Port}");
+                    }
 
                     //wait disconnect
                     var checkBuffer = new byte[1];
                     _ = await clientStream.ReadAsync(checkBuffer, 0, 1, token);
-                    Console.WriteLine($"Close UDP tunnel {_serverIpAddress}:{udpTunnel.Port}");
+
+                    if (S5Settings.DebugInfo)
+                    {
+                        Console.WriteLine($"Close UDP tunnel {_serverIpAddress}:{udpTunnel.Port}");
+                    }
                 }
             }
         }
