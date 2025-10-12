@@ -18,6 +18,8 @@ public class S5Settings
         new NoneCredentials()
     };
 
+    public IPAddress RemoteServerAddress { get; set; } = IPAddress.Parse("127.0.0.1");
+
     public IPEndPoint? UpstreamProxy { get; set; }
 
     public static bool DebugInfo { get; set; } = true;

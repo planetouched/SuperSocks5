@@ -82,6 +82,7 @@ namespace SuperSocks5.Shared.Encryption.AESGcm
                 
                 long clientUnixTimeMs = BitConverter.ToInt64(utcBuffer);
                 long unixTimeMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                //Console.WriteLine($"client: {clientUnixTimeMs} server: {unixTimeMs} diff: {Math.Abs(unixTimeMs - clientUnixTimeMs)} expiredMs: {_expiredTimeMs}");
 
                 /*
                 +----+--------+
@@ -91,7 +92,7 @@ namespace SuperSocks5.Shared.Encryption.AESGcm
                 +----+--------+
                 */
 
-                if (unixTimeMs - clientUnixTimeMs < _expiredTimeMs && keyPhrase == _keyPhrase)
+                if (Math.Abs(unixTimeMs - clientUnixTimeMs) < _expiredTimeMs && keyPhrase == _keyPhrase)
                 {
                     await stream.WriteAsync([0x01, 0x00], 0, 2, token); // Success
                     return true;

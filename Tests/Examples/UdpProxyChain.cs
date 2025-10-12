@@ -39,7 +39,9 @@ namespace Tests.Examples
         public static async Task Test(string credType)
         {
             var serverSettings = new S5Settings();
-            
+            serverSettings.RemoteServerAddress = IPAddress.Parse("127.0.0.1"); //important! set a valid remote ip 
+
+
             serverSettings.ResponseAuths.Add(GetCreds(credType));
             serverSettings.RequestAuths.Add(GetCreds(credType));
             
@@ -47,7 +49,8 @@ namespace Tests.Examples
             var server = new S5Server(IPAddress.Any, 1092, serverSettings);
 
             var server1Settings = new S5Settings();
-            
+
+            server1Settings.RemoteServerAddress = IPAddress.Parse("127.0.0.1"); //important! set a valid remote ip 
             server1Settings.ResponseAuths.Add(GetCreds(credType));
             //server1Settings.RequestAuths.Add(GetCreds(credType));
             
@@ -55,7 +58,8 @@ namespace Tests.Examples
             server1.OnRedirect += ServerOnOnRedirect1; //redirect method see below...
 
             var server2Settings = new S5Settings();
-            
+
+            server2Settings.RemoteServerAddress = IPAddress.Parse("127.0.0.1"); //important! set a valid remote ip 
             server2Settings.ResponseAuths.Add(GetCreds(credType));
             server2Settings.RequestAuths.Add(GetCreds(credType));
             

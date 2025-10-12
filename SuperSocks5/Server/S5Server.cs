@@ -9,13 +9,12 @@ namespace SuperSocks5.Server;
 
 public class S5Server
 {
-    private IPAddress _serverIpAddress;
     private readonly IPAddress _ipAddress;
     private readonly int _port;
     private readonly S5Settings _settings;
 
     public CancellationTokenSource Cts { get; } = new();
-    public event Func<S5Packet, CancellationToken, Task<(IPEndPoint? endPoint, IList<AuthCredentialsBase> requestAuths)>> OnRedirect;
+    public event Func<S5Packet, CancellationToken, Task<(IPEndPoint? endPoint, IList<AuthCredentialsBase> requestAuths)>>? OnRedirect;
 
     public S5Server(IPAddress ipAddress, int port, S5Settings settings)
     {
@@ -29,9 +28,7 @@ public class S5Server
         var listener = new TcpListener(_ipAddress, _port);
         listener.Start();
 
-        _serverIpAddress = Dns.GetHostAddresses(Dns.GetHostName()).FirstOrDefault(ip => ip.AddressFamily == _ipAddress.AddressFamily);
-
-        Console.WriteLine($"Server started {listener.LocalEndpoint}");
+        Console.WriteLine($"Server started local: {listener.LocalEndpoint}, remote: {_settings.RemoteServerAddress}");
 
         var token = Cts.Token;
 
@@ -103,7 +100,7 @@ public class S5Server
 
                 if (packet.Error != S5Const.NoError)
                 {
-                    await S5Protocol.SendOpResultAsync(clientStream, prevEncryption, packet.Error, _serverIpAddress, _port, token);
+                    await S5Protocol.SendOpResultAsync(clientStream, prevEncryption, packet.Error, _settings.RemoteServerAddress, _port, token);
                     return;
                 }
 
@@ -177,11 +174,11 @@ public class S5Server
 
         using (var udpTunnel = new UdpTunnel(null, prevEncryption, new NoEncryption()))
         {
-            await S5Protocol.SendOpResultAsync(clientStream, prevEncryption, 0, _serverIpAddress, udpTunnel.Port, token);
+            await S5Protocol.SendOpResultAsync(clientStream, prevEncryption, 0, _settings.RemoteServerAddress, udpTunnel.Port, token);
 
             if (S5Settings.DebugInfo)
             {
-                Console.WriteLine($"Open UDP tunnel {_serverIpAddress}:{udpTunnel.Port}");
+                Console.WriteLine($"Open UDP tunnel {_settings.RemoteServerAddress}:{udpTunnel.Port}");
             }
 
             //wait disconnect
@@ -190,7 +187,7 @@ public class S5Server
 
             if (S5Settings.DebugInfo)
             {
-                Console.WriteLine($"Close UDP tunnel {_serverIpAddress}:{udpTunnel.Port}");
+                Console.WriteLine($"Close UDP tunnel {_settings.RemoteServerAddress}:{udpTunnel.Port}");
             }
         }
     }
@@ -221,11 +218,11 @@ public class S5Server
                 var udpBackPacket = await S5Protocol.SendRequestAsync(upstreamStream, nextEncryption, udpPacket, token);
                 using (var udpTunnel = new UdpTunnel(udpBackPacket.GetEndPoint(), prevEncryption, nextEncryption))
                 {
-                    await S5Protocol.SendOpResultAsync(clientStream, prevEncryption, 0, _serverIpAddress, udpTunnel.Port, token);
+                    await S5Protocol.SendOpResultAsync(clientStream, prevEncryption, 0, _settings.RemoteServerAddress, udpTunnel.Port, token);
 
                     if (S5Settings.DebugInfo)
                     {
-                        Console.WriteLine($"Open UDP tunnel {_serverIpAddress}:{udpTunnel.Port}");
+                        Console.WriteLine($"Open UDP tunnel {_settings.RemoteServerAddress}:{udpTunnel.Port}");
                     }
 
                     //wait disconnect
@@ -234,7 +231,7 @@ public class S5Server
 
                     if (S5Settings.DebugInfo)
                     {
-                        Console.WriteLine($"Close UDP tunnel {_serverIpAddress}:{udpTunnel.Port}");
+                        Console.WriteLine($"Close UDP tunnel {_settings.RemoteServerAddress}:{udpTunnel.Port}");
                     }
                 }
             }
@@ -260,7 +257,7 @@ public class S5Server
                 var nextEncryption = pair.encryption;
 
                 var backPacket = await S5Protocol.SendRequestAsync(upstreamStream, nextEncryption, packet, token);
-                await S5Protocol.SendOpResultAsync(clientStream, prevEncryption, backPacket.Error, _serverIpAddress, _port, token);
+                await S5Protocol.SendOpResultAsync(clientStream, prevEncryption, backPacket.Error, _settings.RemoteServerAddress, _port, token);
                 if (backPacket.Error == S5Const.NoError)
                 {
                     await TunnelDataBetweenStreams(prevEncryption, nextEncryption, clientStream, upstreamStream, token);
@@ -286,7 +283,7 @@ public class S5Server
                     await targetEndPoint.ConnectAsync(packet.IpAddress, packet.TargetPort, token);
                 }
 
-                await S5Protocol.SendOpResultAsync(clientStream, prevEncryption, S5Const.NoError, _serverIpAddress, _port, token);
+                await S5Protocol.SendOpResultAsync(clientStream, prevEncryption, S5Const.NoError, _settings.RemoteServerAddress, _port, token);
             }
             catch (Exception)
             {
