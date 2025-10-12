@@ -80,7 +80,7 @@ namespace Tests.Examples
             byte[] requestBytes = Encoding.ASCII.GetBytes(requestString);
 
             var result = await S5Client.SendRequestTcpAsync(
-                clientSettings, 
+                clientSettings.RequestAuths, 
                 new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1082), 
                 new S5Packet { TargetHost = "example.com", TargetPort = 80 }, 
                 requestBytes);

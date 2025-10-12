@@ -91,7 +91,7 @@ namespace Tests.Examples
             };
 
 
-            var result = await S5Client.SendRequestUdpAsync(clientSettings, 
+            var result = await S5Client.SendRequestUdpAsync(clientSettings.RequestAuths, 
                 new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1092),
                 new S5Packet { IpAddress = IPAddress.Parse("8.8.8.8"), TargetPort = 53 }, 
                 dnsQuery);
