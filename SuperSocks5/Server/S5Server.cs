@@ -4,6 +4,7 @@ using System.Net.Sockets;
 using SuperSocks5.Shared.Encryption._Base;
 using SuperSocks5.Shared.Encryption.None;
 using SuperSocks5.Shared.Settings;
+using SuperSocks5.Client;
 
 namespace SuperSocks5.Server;
 
@@ -107,61 +108,44 @@ public class S5Server
                 if (OnRedirect != null)
                 {
                     var redirectResult = await OnRedirect.Invoke(packet, token);
-
-                    if (redirectResult.endPoint != null)
-                    {
-                        if (packet.Command == S5Const.CmdConnect)
-                        {
-                            await ToSocks5Async(redirectResult.endPoint, packet, clientStream, redirectResult.requestAuths, prevEncryption);
-                        }
-                        else if (packet.Command == S5Const.CmdUdpAssociate)
-                        {
-                            await ToSocks5UdpAsync(redirectResult.endPoint, client, redirectResult.requestAuths, prevEncryption);
-                        }
-                    }
-                    else
-                    {
-                        if (packet.Command == S5Const.CmdConnect)
-                        {
-                            await ToDirectAsync(packet, clientStream, prevEncryption);
-                        }
-                        else if (packet.Command == S5Const.CmdUdpAssociate)
-                        {
-                            await ToDirectUdpAsync(client, prevEncryption);
-                        }
-                    }
+                    await SendDataUpstream(redirectResult.endPoint, packet, client, clientStream, redirectResult.requestAuths, prevEncryption);
                 }
                 else
                 {
-                    if (_settings.UpstreamProxy != null)
-                    {
-                        if (packet.Command == S5Const.CmdConnect)
-                        {
-                            await ToSocks5Async(_settings.UpstreamProxy, packet, clientStream, _settings.RequestAuths, prevEncryption);
-                        }
-                        else if (packet.Command == S5Const.CmdUdpAssociate)
-                        {
-                            await ToSocks5UdpAsync(_settings.UpstreamProxy, client, _settings.RequestAuths, prevEncryption);
-                        }
-                    }
-                    else
-                    {
-                        if (packet.Command == S5Const.CmdConnect)
-                        {
-                            await ToDirectAsync(packet, clientStream, prevEncryption);
-                        }
-
-                        else if (packet.Command == S5Const.CmdUdpAssociate)
-                        {
-                            await ToDirectUdpAsync(client, prevEncryption);
-                        }
-                    }
+                    await SendDataUpstream(_settings.UpstreamProxy, packet, client, clientStream, _settings.RequestAuths, prevEncryption);
                 }
             }
         }
         catch (Exception)
         {
             //await udpCancellationTokenSource.CancelAsync();
+        }
+    }
+
+    private async Task SendDataUpstream(IPEndPoint? proxyEndPoint, S5Packet packet, TcpClient client, NetworkStream clientStream, IList<AuthCredentialsBase> requestAuths, EncryptionBase prevEncryption)
+    {
+        if (proxyEndPoint != null)
+        {
+            if (packet.Command == S5Const.CmdConnect)
+            {
+                await ToSocks5Async(proxyEndPoint, packet, clientStream, requestAuths, prevEncryption);
+            }
+            else if (packet.Command == S5Const.CmdUdpAssociate)
+            {
+                await ToSocks5UdpAsync(proxyEndPoint, client, requestAuths, prevEncryption);
+            }
+        }
+        else
+        {
+            if (packet.Command == S5Const.CmdConnect)
+            {
+                await ToDirectAsync(packet, clientStream, prevEncryption);
+            }
+
+            else if (packet.Command == S5Const.CmdUdpAssociate)
+            {
+                await ToDirectUdpAsync(client, prevEncryption);
+            }
         }
     }
 
