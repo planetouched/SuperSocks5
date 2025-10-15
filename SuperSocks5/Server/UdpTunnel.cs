@@ -73,8 +73,12 @@ public class UdpTunnel : IDisposable
                 }
                 else
                 {
-                    var udpMessage = await S5Protocol.UnwrapUdpDatagramAsync(
-                        _prevEncryption.DecodeDatagram(udpResult.Buffer, token), token);
+                    var udpMessage = await S5Protocol.UnwrapUdpDatagramAsync(_prevEncryption.DecodeDatagram(udpResult.Buffer, token), token);
+
+                    if (udpMessage.FrameNum != 0) //no FRAG support
+                    {
+                        continue;
+                    }
                         
                     if (!upstreamConnected)
                     {
