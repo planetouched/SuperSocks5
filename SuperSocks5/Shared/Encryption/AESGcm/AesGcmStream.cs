@@ -93,18 +93,27 @@ namespace SuperSocks5.Shared.Encryption.AESGcm
 
         public override async Task WriteAsync(byte[] buffer, int offset, int count, CancellationToken token)
         {
-            byte[] plaintext = new byte[count];
-            Buffer.BlockCopy(buffer, offset, plaintext, 0, count);
+            int processed = 0;
 
-            var encodedBytes = AesGcmEncryption.EncodeBytes(plaintext, _key);
+            while (processed < count)
+            {
+                int chunkSize = Math.Min(count - processed, MaxSegmentSize - 28); // 28 = 12(nonce) + 16(tag) для AES-GCM
 
-            byte[] lengthPrefix = BitConverter.GetBytes(encodedBytes.Length);
+                byte[] plaintext = new byte[chunkSize];
+                Buffer.BlockCopy(buffer, offset + processed, plaintext, 0, chunkSize);
 
-            var combinedBuffer = new byte[lengthPrefix.Length + encodedBytes.Length];
-            Buffer.BlockCopy(lengthPrefix, 0, combinedBuffer, 0, lengthPrefix.Length);
-            Buffer.BlockCopy(encodedBytes, 0, combinedBuffer, lengthPrefix.Length, encodedBytes.Length);
+                processed += chunkSize;
 
-            await _baseStream.WriteAsync(combinedBuffer, 0, combinedBuffer.Length, token);
+                var encodedBytes = AesGcmEncryption.EncodeBytes(plaintext, _key);
+
+                byte[] lengthPrefix = BitConverter.GetBytes(encodedBytes.Length);
+
+                var combinedBuffer = new byte[lengthPrefix.Length + encodedBytes.Length];
+                Buffer.BlockCopy(lengthPrefix, 0, combinedBuffer, 0, lengthPrefix.Length);
+                Buffer.BlockCopy(encodedBytes, 0, combinedBuffer, lengthPrefix.Length, encodedBytes.Length);
+
+                await _baseStream.WriteAsync(combinedBuffer, 0, combinedBuffer.Length, token);
+            }
         }
 
         public override void Flush()

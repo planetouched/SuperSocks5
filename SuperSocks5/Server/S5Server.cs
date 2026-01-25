@@ -294,10 +294,31 @@ public class S5Server
         var upstreamDecodingStream = nextEncryption.GetDecodingStream(upstreamStream);
         var clientEncodingStream = prevEncryption.GetEncodingStream(clientStream);
 
-        await Task.WhenAny(
-            TunnelDataAsync(clientDecodingStream, upstreamEncodingStream, token),
-            TunnelDataAsync(upstreamDecodingStream, clientEncodingStream, token)
-        );
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(token);
+
+        var task1 = TunnelDataAsync(clientDecodingStream, upstreamEncodingStream, cts.Token);
+        var task2 = TunnelDataAsync(upstreamDecodingStream, clientEncodingStream, cts.Token);
+
+        // Ждем завершения любой задачи
+        await Task.WhenAny(task1, task2);
+
+        // Отменяем вторую задачу
+        cts.Cancel();
+
+        try
+        {
+            // Ждем завершения обеих задач (вторая быстро завершится из-за отмены)
+            await Task.WhenAll(task1, task2);
+        }
+        catch (OperationCanceledException)
+        {
+            // Ожидаемая отмена
+        }
+
+        // await Task.WhenAny(
+        //     TunnelDataAsync(clientDecodingStream, upstreamEncodingStream, token),
+        //     TunnelDataAsync(upstreamDecodingStream, clientEncodingStream, token)
+        // );
 
         if (clientDecodingStream != clientStream)
         {
@@ -326,7 +347,7 @@ public class S5Server
 
         try
         {
-            while (true)
+            while (!token.IsCancellationRequested)
             {
                 int bytesRead = await source.ReadAsync(buffer, 0, buffer.Length, token);
                 if (bytesRead == 0) break;
@@ -334,11 +355,38 @@ public class S5Server
                 await destination.WriteAsync(buffer, 0, bytesRead, token);
             }
         }
-        catch (Exception)
+        catch (OperationCanceledException)
         {
-            // Туннелирование прервано, это нормально при закрытии соединения
+            // Отмена запрошена - нормальный выход
+        }
+        catch (Exception ex) when (
+            ex is IOException ||
+            ex is ObjectDisposedException ||
+            ex is InvalidOperationException)
+        {
+            // Соединение разорвано - нормальный выход
         }
     }
+
+    // protected async Task TunnelDataAsync(Stream source, Stream destination, CancellationToken token)
+    // {
+    //     var buffer = new byte[4096];
+    //
+    //     try
+    //     {
+    //         while (true)
+    //         {
+    //             int bytesRead = await source.ReadAsync(buffer, 0, buffer.Length, token);
+    //             if (bytesRead == 0) break;
+    //
+    //             await destination.WriteAsync(buffer, 0, bytesRead, token);
+    //         }
+    //     }
+    //     catch (Exception)
+    //     {
+    //         // Туннелирование прервано, это нормально при закрытии соединения
+    //     }
+    // }
 
     #endregion TCP
 }
