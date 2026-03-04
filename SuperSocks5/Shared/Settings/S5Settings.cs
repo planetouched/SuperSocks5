@@ -22,5 +22,7 @@ public class S5Settings
 
     public IPEndPoint? UpstreamProxy { get; set; }
 
+    public HandshakeEncryptionBase HandshakeEncryption { get; set; } = new NoHandshakeEncryption();
+
     public static bool DebugInfo { get; set; } = true;
 }

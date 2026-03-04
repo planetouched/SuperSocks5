@@ -48,14 +48,13 @@ namespace SuperSocks5.Shared.Encryption.AESGcm
 
             // Читаем длину сегмента
             byte[] lengthBuffer = new byte[4];
-            int bytesRead = await _baseStream.ReadAsync(lengthBuffer, 0, 4, token);
-            if (bytesRead == 0)
+            try
             {
-                return 0;
+                await _baseStream.ReadExactlyAsync(lengthBuffer, 0, lengthBuffer.Length, token);
             }
-            if (bytesRead != 4)
+            catch (EndOfStreamException)
             {
-                throw new EndOfStreamException();
+                return 0; // Поток закончился до чтения 4 байт
             }
 
             int segmentLength = BitConverter.ToInt32(lengthBuffer, 0);

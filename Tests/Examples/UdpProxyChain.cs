@@ -6,6 +6,7 @@ using SuperSocks5.Shared;
 using SuperSocks5.Shared.Encryption._Base;
 using SuperSocks5.Shared.Encryption.AESGcm;
 using SuperSocks5.Shared.Encryption.None;
+using SuperSocks5.Shared.Encryption.Xor;
 using SuperSocks5.Shared.Settings;
 
 namespace Tests.Examples
@@ -27,11 +28,11 @@ namespace Tests.Examples
                 var aesKey = Convert.FromHexString("A5F697E5D7416EBED99E8EC7031B63E2F7DB1C4284CE7E2DD3FD0D2935A662F6");
                 return new AesGcmUserPassCredentials("user", "password", aesKey);
             }
-            if (credType == "aesTime")
-            {
-                var aesKey = Convert.FromHexString("A5F697E5D7416EBED99E8EC7031B63E2F7DB1C4284CE7E2DD3FD0D2935A662F6");
-                return new AesGcmKeyTimeCredentials("superkey", aesKey, 5000);
-            }
+            // if (credType == "aesTime")
+            // {
+            //     var aesKey = Convert.FromHexString("A5F697E5D7416EBED99E8EC7031B63E2F7DB1C4284CE7E2DD3FD0D2935A662F6");
+            //     return new AesGcmKeyTimeCredentials("superkey", aesKey, 5000);
+            // }
 
             return new NoneCredentials();
         }
@@ -40,6 +41,7 @@ namespace Tests.Examples
         {
             var serverSettings = new S5Settings();
             serverSettings.RemoteServerAddress = IPAddress.Parse("127.0.0.1"); //important! set a valid remote ip 
+            serverSettings.HandshakeEncryption = new XorHandshakeEncryption();
 
 
             serverSettings.ResponseAuths.Add(GetCreds(credType));
@@ -49,6 +51,7 @@ namespace Tests.Examples
             var server = new S5Server(IPAddress.Any, 1092, serverSettings);
 
             var server1Settings = new S5Settings();
+            server1Settings.HandshakeEncryption = new XorHandshakeEncryption();
 
             server1Settings.RemoteServerAddress = IPAddress.Parse("127.0.0.1"); //important! set a valid remote ip 
             server1Settings.ResponseAuths.Add(GetCreds(credType));
@@ -58,6 +61,7 @@ namespace Tests.Examples
             server1.OnRedirect += ServerOnOnRedirect1; //redirect method see below...
 
             var server2Settings = new S5Settings();
+            //server2Settings.EncryptHandshake = true;
 
             server2Settings.RemoteServerAddress = IPAddress.Parse("127.0.0.1"); //important! set a valid remote ip 
             server2Settings.ResponseAuths.Add(GetCreds(credType));
@@ -98,7 +102,7 @@ namespace Tests.Examples
             var result = await S5Client.SendRequestUdpAsync(clientSettings.RequestAuths, 
                 new IPEndPoint(IPAddress.Parse("127.0.0.1"), 1092),
                 new S5Packet { IpAddress = IPAddress.Parse("8.8.8.8"), TargetPort = 53 }, 
-                dnsQuery);
+                dnsQuery, new XorHandshakeEncryption());
 
             Console.WriteLine($"result len: {result.Length}");
 

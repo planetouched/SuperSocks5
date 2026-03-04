@@ -78,10 +78,10 @@ public class XorEncryption : EncryptionBase
     private async Task<Stream> DecodeMessage(Stream stream, CancellationToken token)
     {
         var lenBuffer = new byte[4];
-        _ = await stream.ReadAsync(lenBuffer, 0, 4, token);
+        await stream.ReadExactlyAsync(lenBuffer, 0, 4, token);
             
         var encodedMessage = new byte[BitConverter.ToInt32(lenBuffer)];
-        _ = await stream.ReadAsync(encodedMessage, 0, encodedMessage.Length, token);
+        await stream.ReadExactlyAsync(encodedMessage, 0, encodedMessage.Length, token);
         var decodedHeader = DecodeBytes(encodedMessage);
         return new MemoryStream(decodedHeader);
     }
@@ -91,10 +91,10 @@ public class XorEncryption : EncryptionBase
         using (var memStream = new MemoryStream(encodedBytes))
         {
             var lenBuffer = new byte[4];
-            _ = await memStream.ReadAsync(lenBuffer, 0, 4, token);
+            await memStream.ReadExactlyAsync(lenBuffer, 0, 4, token);
                 
             var encodedMessage = new byte[BitConverter.ToInt32(lenBuffer)];
-            _ = await memStream.ReadAsync(encodedMessage, 0, encodedMessage.Length, token);
+            await memStream.ReadExactlyAsync(encodedMessage, 0, encodedMessage.Length, token);
             var decodedHeader = DecodeBytes(encodedMessage);
             return decodedHeader;
         }

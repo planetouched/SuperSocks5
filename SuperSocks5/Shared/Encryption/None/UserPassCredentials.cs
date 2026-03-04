@@ -27,14 +27,14 @@ public class UserPassCredentials : AuthCredentialsBase
 
         var usernameBytes = Encoding.UTF8.GetBytes(Username);
         var passwordBytes = Encoding.UTF8.GetBytes(Password);
-        var message = new List<byte>(3 + usernameBytes.Length + passwordBytes.Length);
+        var request = new List<byte>(3 + usernameBytes.Length + passwordBytes.Length);
 
-        message.Add(0x01);
-        message.Add((byte)usernameBytes.Length);
-        message.AddRange(usernameBytes);
-        message.Add((byte)passwordBytes.Length);
-        message.AddRange(passwordBytes);
-        await stream.WriteAsync(message.ToArray(), 0, message.Count, token);
+        request.Add(0x01);
+        request.Add((byte)usernameBytes.Length);
+        request.AddRange(usernameBytes);
+        request.Add((byte)passwordBytes.Length);
+        request.AddRange(passwordBytes);
+        await stream.WriteAsync(request.ToArray(), 0, request.Count, token);
 
         /*
         +----+--------+
@@ -46,8 +46,8 @@ public class UserPassCredentials : AuthCredentialsBase
         
         var authResponse = new byte[2];
 
-        var bytesRead = await stream.ReadAsync(authResponse, 0, 2, token);
-        if (bytesRead != 2 || authResponse[0] != 0x01 || authResponse[1] != 0x00)
+        await stream.ReadExactlyAsync(authResponse, 0, 2, token);
+        if (authResponse[0] != 0x01 || authResponse[1] != 0x00)
         {
             return false;
         }
@@ -69,34 +69,31 @@ public class UserPassCredentials : AuthCredentialsBase
         {
             // Читаем версию аутентификации
             var versionBuffer = new byte[1];
-            int bytesRead = await stream.ReadAsync(versionBuffer, 0, 1, token);
-            if (bytesRead != 1 || versionBuffer[0] != 0x01) return false;
+            await stream.ReadExactlyAsync(versionBuffer, 0, 1, token);
+            if (versionBuffer[0] != 0x01) return false;
 
             // Читаем длину username
             var usernameLengthBuffer = new byte[1];
-            bytesRead = await stream.ReadAsync(usernameLengthBuffer, 0, 1, token);
-            if (bytesRead != 1) return false;
+            await stream.ReadExactlyAsync(usernameLengthBuffer, 0, 1, token);
 
             int usernameLength = usernameLengthBuffer[0];
 
             // Читаем username
             var usernameBuffer = new byte[usernameLength];
-            bytesRead = await stream.ReadAsync(usernameBuffer, 0, usernameLength, token);
-            if (bytesRead != usernameLength) return false;
+            await stream.ReadExactlyAsync(usernameBuffer, 0, usernameLength, token);
 
             var username = Encoding.UTF8.GetString(usernameBuffer);
 
             // Читаем длину password
             var passwordLengthBuffer = new byte[1];
-            bytesRead = await stream.ReadAsync(passwordLengthBuffer, 0, 1, token);
-            if (bytesRead != 1) return false;
+            await stream.ReadExactlyAsync(passwordLengthBuffer, 0, 1, token);
+            
 
             int passwordLength = passwordLengthBuffer[0];
 
             // Читаем password
             var passwordBuffer = new byte[passwordLength];
-            bytesRead = await stream.ReadAsync(passwordBuffer, 0, passwordLength, token);
-            if (bytesRead != passwordLength) return false;
+            await stream.ReadExactlyAsync(passwordBuffer, 0, passwordLength, token);
 
             var password = Encoding.UTF8.GetString(passwordBuffer);
 

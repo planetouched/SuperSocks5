@@ -98,9 +98,9 @@ public class S5Client : IDisposable
 
     #region Request-Response
 
-    public static async Task<byte[]> SendRequestTcpAsync(IList<AuthCredentialsBase> requestAuths, IPEndPoint proxy, S5Packet endPoint, byte[] data, CancellationTokenSource? cts = null)
+    public static async Task<byte[]> SendRequestTcpAsync(IList<AuthCredentialsBase> requestAuths, IPEndPoint proxy, S5Packet endPoint, byte[] data, HandshakeEncryptionBase handshakeEncryption, CancellationTokenSource? cts = null)
     {
-        using (var client = await S5ClientFactory.CreateAsync(requestAuths, proxy, cts))
+        using (var client = await S5ClientFactory.CreateAsync(requestAuths, proxy, handshakeEncryption, cts))
         {
             await client.ConnectTcpAsync(endPoint);
             var stream = client.GetEncodingStream();
@@ -110,9 +110,9 @@ public class S5Client : IDisposable
         }
     }
 
-    public static async Task<byte[]> SendRequestUdpAsync(IList<AuthCredentialsBase> requestAuths, IPEndPoint proxy, S5Packet endPoint, byte[] data, CancellationTokenSource? cts = null)
+    public static async Task<byte[]> SendRequestUdpAsync(IList<AuthCredentialsBase> requestAuths, IPEndPoint proxy, S5Packet endPoint, byte[] data, HandshakeEncryptionBase handshakeEncryption, CancellationTokenSource? cts = null)
     {
-        using (var client = await S5ClientFactory.CreateAsync(requestAuths, proxy, cts))
+        using (var client = await S5ClientFactory.CreateAsync(requestAuths, proxy, handshakeEncryption, cts))
         {
             await client.ConnectUdpAsync();
             await client.SendDatagramAsync(data, endPoint);

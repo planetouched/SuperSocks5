@@ -193,7 +193,7 @@ public class S5Server
             await upstreamClient.ConnectAsync(upstreamEndPoint, token);
             var upstreamStream = upstreamClient.GetStream();
 
-            var pair = await S5Protocol.SendHandshakeAsync(upstreamStream, requestAuths, token);
+            var pair = await S5Protocol.SendHandshakeAsync(upstreamStream, requestAuths, _settings.HandshakeEncryption, token);
 
             if (pair.success)
             {
@@ -235,7 +235,7 @@ public class S5Server
             await upstreamClient.ConnectAsync(upstreamEndPoint, token);
             var upstreamStream = upstreamClient.GetStream();
 
-            var pair = await S5Protocol.SendHandshakeAsync(upstreamStream, requestAuths, token);
+            var pair = await S5Protocol.SendHandshakeAsync(upstreamStream, requestAuths, _settings.HandshakeEncryption, token);
             if (pair.success)
             {
                 var nextEncryption = pair.encryption;
@@ -367,26 +367,6 @@ public class S5Server
             // Соединение разорвано - нормальный выход
         }
     }
-
-    // protected async Task TunnelDataAsync(Stream source, Stream destination, CancellationToken token)
-    // {
-    //     var buffer = new byte[4096];
-    //
-    //     try
-    //     {
-    //         while (true)
-    //         {
-    //             int bytesRead = await source.ReadAsync(buffer, 0, buffer.Length, token);
-    //             if (bytesRead == 0) break;
-    //
-    //             await destination.WriteAsync(buffer, 0, bytesRead, token);
-    //         }
-    //     }
-    //     catch (Exception)
-    //     {
-    //         // Туннелирование прервано, это нормально при закрытии соединения
-    //     }
-    // }
 
     #endregion TCP
 }

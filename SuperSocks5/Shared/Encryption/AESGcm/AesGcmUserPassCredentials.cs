@@ -29,15 +29,18 @@ namespace SuperSocks5.Shared.Encryption.AESGcm
 
             var usernameBytes = Encoding.UTF8.GetBytes(Username);
             var passwordBytes = Encoding.UTF8.GetBytes(Password);
-            var message = new List<byte>(3 + usernameBytes.Length + passwordBytes.Length);
+            var request = new List<byte>(3 + usernameBytes.Length + passwordBytes.Length);
 
-            message.Add(0x01);
+            request.Add(0x01);
 
-            message.Add((byte)usernameBytes.Length);
-            message.AddRange(usernameBytes);
-            message.Add((byte)passwordBytes.Length);
-            message.AddRange(passwordBytes);
-            await stream.WriteAsync(message.ToArray(), 0, message.Count, token);
+            request.Add((byte)usernameBytes.Length);
+            request.AddRange(usernameBytes);
+            request.Add((byte)passwordBytes.Length);
+            request.AddRange(passwordBytes);
+
+            //шифруем
+            var encryptedRequest = await AesGcmEncryption.EncodeMessageWithLength(request.ToArray(), _key);
+            await stream.WriteAsync(encryptedRequest, 0, encryptedRequest.Length, token);
 
             /*
             +----+--------+
@@ -47,10 +50,13 @@ namespace SuperSocks5.Shared.Encryption.AESGcm
             +----+--------+
             */
 
-            var authResponse = new byte[2];
+            //дешифруем ответ
+            await using var responseStream = await AesGcmEncryption.DecodeMessageWithLength(stream, _key, token);
 
-            var bytesRead = await stream.ReadAsync(authResponse, 0, 2, token);
-            if (bytesRead != 2 || authResponse[0] != 0x01 || authResponse[1] != 0x00)
+            var response = new byte[2];
+            await responseStream.ReadExactlyAsync(response, 0, response.Length, token);
+
+            if (response[0] != 0x01 || response[1] != 0x00)
             {
                 return false;
             }
@@ -70,36 +76,35 @@ namespace SuperSocks5.Shared.Encryption.AESGcm
 
             try
             {
+                //дешифруем
+                await using var requestStream = await AesGcmEncryption.DecodeMessageWithLength(stream, _key, token);
+                
                 // Читаем версию аутентификации
                 var versionBuffer = new byte[1];
-                int bytesRead = await stream.ReadAsync(versionBuffer, 0, 1, token);
-                if (bytesRead != 1 || versionBuffer[0] != 0x01) return false;
+                await requestStream.ReadExactlyAsync(versionBuffer, 0, 1, token);
+                if (versionBuffer[0] != 0x01) return false;
 
                 // Читаем длину username
                 var usernameLengthBuffer = new byte[1];
-                bytesRead = await stream.ReadAsync(usernameLengthBuffer, 0, 1, token);
-                if (bytesRead != 1) return false;
+                await requestStream.ReadExactlyAsync(usernameLengthBuffer, 0, 1, token);
 
                 int usernameLength = usernameLengthBuffer[0];
 
                 // Читаем username
                 var usernameBuffer = new byte[usernameLength];
-                bytesRead = await stream.ReadAsync(usernameBuffer, 0, usernameLength, token);
-                if (bytesRead != usernameLength) return false;
+                await requestStream.ReadExactlyAsync(usernameBuffer, 0, usernameLength, token);
 
                 var username = Encoding.UTF8.GetString(usernameBuffer);
 
                 // Читаем длину password
                 var passwordLengthBuffer = new byte[1];
-                bytesRead = await stream.ReadAsync(passwordLengthBuffer, 0, 1, token);
-                if (bytesRead != 1) return false;
+                await requestStream.ReadExactlyAsync(passwordLengthBuffer, 0, 1, token);
 
                 int passwordLength = passwordLengthBuffer[0];
 
                 // Читаем password
                 var passwordBuffer = new byte[passwordLength];
-                bytesRead = await stream.ReadAsync(passwordBuffer, 0, passwordLength, token);
-                if (bytesRead != passwordLength) return false;
+                await requestStream.ReadExactlyAsync(passwordBuffer, 0, passwordLength, token);
 
                 var password = Encoding.UTF8.GetString(passwordBuffer);
 
@@ -111,13 +116,19 @@ namespace SuperSocks5.Shared.Encryption.AESGcm
                 +----+--------+
                 */
 
+                //шифруем
+                byte[] encryptedResponse;
+
                 if (Username == username && Password == password)
                 {
-                    await stream.WriteAsync([0x01, 0x00], 0, 2, token); // Success
+                    encryptedResponse = await AesGcmEncryption.EncodeMessageWithLength([0x01, 0x00], _key);
+
+                    await stream.WriteAsync(encryptedResponse, 0, encryptedResponse.Length, token); // Success
                     return true;
                 }
 
-                await stream.WriteAsync([0x01, 0x01], 0, 2, token); // Failure
+                encryptedResponse = await AesGcmEncryption.EncodeMessageWithLength([0x01, 0x01], _key);
+                await stream.WriteAsync(encryptedResponse, 0, encryptedResponse.Length, token); // Failure
                 return false;
             }
             catch

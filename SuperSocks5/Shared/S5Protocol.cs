@@ -1,8 +1,9 @@
 ﻿using System.Net;
 using System.Net.Sockets;
 using System.Text;
+using SuperSocks5.Shared.Encryption;
 using SuperSocks5.Shared.Encryption._Base;
-using SuperSocks5.Shared.Settings;
+using SuperSocks5.Shared.Encryption.Xor;
 
 namespace SuperSocks5.Shared;
 
@@ -33,37 +34,18 @@ public static class S5Protocol
 
     private static async Task<S5Packet> ResponseRequestInnerAsync(byte aTyp, S5Packet packet, Stream stream, CancellationToken token)
     {
-        int bytesRead;
-
         if (aTyp == S5Const.DomainName && packet.Command == S5Const.CmdConnect)
         {
             var lengthBuffer = new byte[1];
-            bytesRead = await stream.ReadAsync(lengthBuffer, 0, 1, token);
-            if (bytesRead != 1)
-            {
-                packet.Error = S5Const.ErrorConnectionRefused;
-                return packet;
-            }
-
+            await stream.ReadExactlyAsync(lengthBuffer, 0, 1, token);
             var domainBuffer = new byte[lengthBuffer[0]];
-            bytesRead = await stream.ReadAsync(domainBuffer, 0, domainBuffer.Length, token);
-            if (bytesRead != domainBuffer.Length)
-            {
-                packet.Error = S5Const.ErrorConnectionRefused;
-                return packet;
-            }
-
+            await stream.ReadExactlyAsync(domainBuffer, 0, domainBuffer.Length, token);
             packet.TargetHost = Encoding.ASCII.GetString(domainBuffer);
         }
         else if (aTyp == S5Const.IPv4)
         {
             var ipBuffer = new byte[4];
-            bytesRead = await stream.ReadAsync(ipBuffer, 0, 4, token);
-            if (bytesRead != 4)
-            {
-                packet.Error = S5Const.ErrorConnectionRefused;
-                return packet;
-            }
+            await stream.ReadExactlyAsync(ipBuffer, 0, 4, token);
 
             packet.IpAddress = new IPAddress(ipBuffer);
 
@@ -76,13 +58,7 @@ public static class S5Protocol
         else if (aTyp == S5Const.IPv6)
         {
             var ipBuffer = new byte[16];
-            bytesRead = await stream.ReadAsync(ipBuffer, 0, 16, token);
-            if (bytesRead != 16)
-            {
-                packet.Error = S5Const.ErrorConnectionRefused;
-                return packet;
-            }
-
+            await stream.ReadExactlyAsync(ipBuffer, 0, 16, token);
             packet.IpAddress = new IPAddress(ipBuffer);
 
             if (packet.Command == S5Const.CmdUdpAssociate && !packet.IpAddress.Equals(IPAddress.IPv6Any))
@@ -99,12 +75,7 @@ public static class S5Protocol
 
         // Читаем порт
         var portBuffer = new byte[2];
-        bytesRead = await stream.ReadAsync(portBuffer, 0, 2, token);
-        if (bytesRead != 2)
-        {
-            packet.Error = S5Const.ErrorConnectionRefused;
-            return packet;
-        }
+        await stream.ReadExactlyAsync(portBuffer, 0, 2, token);
 
         packet.TargetPort = (portBuffer[0] << 8) + portBuffer[1];
         if (packet.Command == S5Const.CmdUdpAssociate && packet.TargetPort != 0)
@@ -115,7 +86,6 @@ public static class S5Protocol
 
         return packet;
     }
-
 
     public static async Task<S5Packet> ResponseRequestAsync(NetworkStream stream, EncryptionBase encryption, CancellationToken token)
     {
@@ -132,13 +102,7 @@ public static class S5Protocol
         var decodedStream = await encryption.DecodeHeader(stream, token);
 
         var header = new byte[4];
-        int bytesRead = await decodedStream.ReadAsync(header, 0, 4, token);
-
-        if (bytesRead != 4)
-        {
-            packet.Error = S5Const.ErrorConnectionRefused;
-            return packet;
-        }
+        await decodedStream.ReadExactlyAsync(header, 0, 4, token);
 
         if (header[0] != S5Const.Version)
         {
@@ -271,29 +235,34 @@ public static class S5Protocol
         +----+----------+----------+
          */
 
-        var authBuffer = new byte[2];
-        int bytesRead = await stream.ReadAsync(authBuffer, 0, 2, token);
+        Stream readStream = stream;
 
-        if (bytesRead != 2)
+        var authHeader = new byte[2];
+        await readStream.ReadExactlyAsync(authHeader, 0, authHeader.Length, token);
+
+        var handshakeEncryption = HandshakeEncryptionFactory.Detect(authHeader[0]);
+
+        var decodeResult = await handshakeEncryption.DecodeAuthRequest(stream, token);
+        readStream = decodeResult.newStream;
+        
+        if (decodeResult.newHeader != null)
         {
-            //Console.WriteLine($"Failed to select an authentication method, the client sent {bytesRead} bytes.");
+            authHeader = decodeResult.newHeader;
+        }
+
+        if (authHeader[0] != S5Const.Version)
+        {
+            Console.WriteLine($"Socks version error: {authHeader[0]}");
             return (false, null);
         }
 
-        if (authBuffer[0] != S5Const.Version)
-        {
-            Console.WriteLine($"Socks version error: {authBuffer[0]}");
-            return (false, null);
-        }
-
-        int methodCount = authBuffer[1];
+        int methodCount = authHeader[1];
         var methods = new byte[methodCount];
-        bytesRead = await stream.ReadAsync(methods, 0, methodCount, token);
+        await readStream.ReadExactlyAsync(methods, 0, methodCount, token);
 
-        if (bytesRead != methodCount)
+        if (readStream != stream)
         {
-            Console.WriteLine("Auth methods count mismatch");
-            return (false, null);
+            await readStream.DisposeAsync();
         }
 
         byte authMethod = S5Const.AuthNoAcceptableMethods;
@@ -326,13 +295,9 @@ public static class S5Protocol
         +-----+--------+
         */
 
-        await stream.WriteAsync([S5Const.Version, authMethod], 0, 2, token);
-
-        // if (authMethod == S5Const.AuthNoAcceptableMethods)
-        // {
-        //     Console.WriteLine("No auth method selected");
-        //     return (false, null);
-        // }
+        var response = new [] { S5Const.Version, authMethod };
+        var encodedResponse = await handshakeEncryption.EncodeAuthResponse(response, token);
+        await stream.WriteAsync(encodedResponse, 0, encodedResponse.Length, token);
 
         if (selectedAuth == null)
         {
@@ -343,7 +308,7 @@ public static class S5Protocol
         return (await selectedAuth.Validate(stream, token), selectedAuth.GetEncryption());
     }
 
-    public static async Task<(bool success, EncryptionBase? encryption)> SendHandshakeAsync(NetworkStream stream, IList<AuthCredentialsBase> requestAuths, CancellationToken token)
+    public static async Task<(bool success, EncryptionBase? encryption)> SendHandshakeAsync(NetworkStream stream, IList<AuthCredentialsBase> requestAuths, HandshakeEncryptionBase handshakeEncryption, CancellationToken token)
     {
         /*
         +----+----------+----------+
@@ -353,16 +318,17 @@ public static class S5Protocol
         +----+----------+----------+
         */
 
-        var handshake = new byte[2 + requestAuths.Count];
-        handshake[0] = S5Const.Version;
-        handshake[1] = (byte)requestAuths.Count;
+        var handshakeRequest = new byte[2 + requestAuths.Count];
+        handshakeRequest[0] = S5Const.Version;
+        handshakeRequest[1] = (byte)requestAuths.Count;
 
         for (int i = 0; i < requestAuths.Count; i++)
         {
-            handshake[2 + i] = requestAuths[i].AuthType;
+            handshakeRequest[2 + i] = requestAuths[i].AuthType;
         }
 
-        await stream.WriteAsync(handshake, 0, handshake.Length, token);
+        var handshakeEncRequest = await handshakeEncryption.EncodeAuthRequest(handshakeRequest, token);
+        await stream.WriteAsync(handshakeEncRequest, 0, handshakeEncRequest.Length, token);
 
         /*
         +----+--------+
@@ -372,13 +338,7 @@ public static class S5Protocol
         +----+--------+
         */
 
-        var handshakeResponse = new byte[2];
-        int bytesRead = await stream.ReadAsync(handshakeResponse, 0, 2, token);
-
-        if (bytesRead != 2)
-        {
-            return (false, null);
-        }
+        var handshakeResponse = await handshakeEncryption.DecodeAuthResponse(stream, token);
 
         if (handshakeResponse[0] != S5Const.Version)
         {
@@ -480,56 +440,33 @@ public static class S5Protocol
         {
             stream.Position = 4;
 
-            int bytesRead;
-
             if (aTyp == S5Const.IPv4)
             {
                 var ipBuffer = new byte[4];
-                bytesRead = await stream.ReadAsync(ipBuffer, 0, 4, token);
-                if (bytesRead != 4)
-                {
-                    return packet;
-                }
+                await stream.ReadExactlyAsync(ipBuffer, 0, 4, token);
 
                 packet.IpAddress = new IPAddress(ipBuffer);
             }
             else if (aTyp == S5Const.IPv6)
             {
                 var ipBuffer = new byte[16];
-                bytesRead = await stream.ReadAsync(ipBuffer, 0, 16, token);
-                if (bytesRead != 4)
-                {
-                    return packet;
-                }
-
+                await stream.ReadExactlyAsync(ipBuffer, 0, 16, token);
                 packet.IpAddress = new IPAddress(ipBuffer);
             }
             else if (aTyp == S5Const.DomainName)
             {
                 var lengthBuffer = new byte[1];
-                bytesRead = await stream.ReadAsync(lengthBuffer, 0, 1, token);
-                if (bytesRead != 1)
-                {
-                    return packet;
-                }
+                await stream.ReadExactlyAsync(lengthBuffer, 0, 1, token);
 
                 var domainBuffer = new byte[lengthBuffer[0]];
-                bytesRead = await stream.ReadAsync(domainBuffer, 0, domainBuffer.Length, token);
-                if (bytesRead != domainBuffer.Length)
-                {
-                    return packet;
-                }
+                await stream.ReadExactlyAsync(domainBuffer, 0, domainBuffer.Length, token);
 
                 packet.TargetHost = Encoding.ASCII.GetString(domainBuffer);
             }
 
             // Читаем порт
             var portBuffer = new byte[2];
-            bytesRead = await stream.ReadAsync(portBuffer, 0, 2, token);
-            if (bytesRead != 2)
-            {
-                return packet;
-            }
+            await stream.ReadExactlyAsync(portBuffer, 0, 2, token);
 
             packet.TargetPort = (portBuffer[0] << 8) + portBuffer[1];
 

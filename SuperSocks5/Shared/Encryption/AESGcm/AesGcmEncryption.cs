@@ -1,4 +1,5 @@
-﻿using System.Net.Sockets;
+﻿using System.IO;
+using System.Net.Sockets;
 using System.Security.Cryptography;
 using SuperSocks5.Shared.Encryption._Base;
 
@@ -77,39 +78,54 @@ namespace SuperSocks5.Shared.Encryption.AESGcm
             return plaintext;
         }
 
-        private async Task<byte[]> EncodeMessage(byte[] bytes)
+        public static async Task<byte[]> EncodeMessageWithLength(byte[] bytes, byte[] key)
         {
             List<byte> result = new(bytes.Length * 2 + 4);
 
-            var encoded = EncodeBytes(bytes, _key);
+            var encoded = EncodeBytes(bytes, key);
             result.AddRange(BitConverter.GetBytes(encoded.Length));
             result.AddRange(encoded);
             return result.ToArray();
         }
 
-        private async Task<Stream> DecodeMessage(Stream stream, CancellationToken token)
+        public static async Task<Stream> DecodeMessageWithLength(Stream stream, byte[] key, CancellationToken token)
         {
             var lenBuffer = new byte[4];
-            var read = await stream.ReadAsync(lenBuffer, 0, 4, token);
+            await stream.ReadExactlyAsync(lenBuffer, 0, 4, token);
 
             var encodedMessage = new byte[BitConverter.ToInt32(lenBuffer)];
-            read = await stream.ReadAsync(encodedMessage, 0, encodedMessage.Length, token);
-            var decodedHeader = DecodeBytes(encodedMessage, _key);
+            await stream.ReadExactlyAsync(encodedMessage, 0, encodedMessage.Length, token);
+            var decodedHeader = DecodeBytes(encodedMessage, key);
             return new MemoryStream(decodedHeader);
         }
 
-        private async Task<byte[]> DecodeMessage(byte[] encodedBytes, CancellationToken token)
+        public static async Task<byte[]> DecodeMessageWithLength(byte[] encodedBytes, byte[] key, CancellationToken token)
         {
             using (var memStream = new MemoryStream(encodedBytes))
             {
                 var lenBuffer = new byte[4];
-                _ = await memStream.ReadAsync(lenBuffer, 0, 4, token);
+                await memStream.ReadExactlyAsync(lenBuffer, 0, 4, token);
 
                 var encodedMessage = new byte[BitConverter.ToInt32(lenBuffer)];
-                _ = await memStream.ReadAsync(encodedMessage, 0, encodedMessage.Length, token);
-                var decodedHeader = DecodeBytes(encodedMessage, _key);
+                await memStream.ReadExactlyAsync(encodedMessage, 0, encodedMessage.Length, token);
+                var decodedHeader = DecodeBytes(encodedMessage, key);
                 return decodedHeader;
             }
+        }
+
+        private async Task<byte[]> EncodeMessage(byte[] bytes)
+        {
+            return await EncodeMessageWithLength(bytes, _key);
+        }
+
+        private async Task<Stream> DecodeMessage(Stream stream, CancellationToken token)
+        {
+            return await DecodeMessageWithLength(stream, _key, token);
+        }
+
+        private async Task<byte[]> DecodeMessage(byte[] encodedBytes, CancellationToken token)
+        {
+            return await DecodeMessageWithLength(encodedBytes, _key, token);
         }
 
         public override async Task<byte[]> EncodeHeader(byte[] header)

@@ -7,7 +7,7 @@ namespace SuperSocks5.Client
 {
     public static class S5ClientFactory
     {
-        public static async Task<S5Client> CreateAsync(IList<AuthCredentialsBase> requestAuths, IPEndPoint proxy, CancellationTokenSource? cts = null)
+        public static async Task<S5Client> CreateAsync(IList<AuthCredentialsBase> requestAuths, IPEndPoint proxy, HandshakeEncryptionBase handshakeEncryption, CancellationTokenSource? cts = null)
         {
             cts ??= new CancellationTokenSource();
             var token = cts.Token;
@@ -16,7 +16,7 @@ namespace SuperSocks5.Client
             await tcpClient.ConnectAsync(proxy, token);
             var stream = tcpClient.GetStream();
 
-            var pair = await S5Protocol.SendHandshakeAsync(stream, requestAuths, token);
+            var pair = await S5Protocol.SendHandshakeAsync(stream, requestAuths, handshakeEncryption, token);
 
             if (pair.success)
             {
