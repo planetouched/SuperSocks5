@@ -2,6 +2,7 @@
 
 public static class S5Const
 {
+    public const string AppVersion = "Version 1.0";
     public const byte CmdConnect = 0x01;
     public const byte CmdBind = 0x02;
     public const byte CmdUdpAssociate = 0x03;

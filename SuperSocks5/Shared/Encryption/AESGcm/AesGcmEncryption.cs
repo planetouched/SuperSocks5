@@ -19,12 +19,7 @@ namespace SuperSocks5.Shared.Encryption.AESGcm
         private static byte[] GenerateNonce(byte[] key)
         {
             byte[] nonce = new byte[12];
-            using (var hmac = new HMACSHA256(key))
-            {
-                byte[] input = BitConverter.GetBytes(DateTime.UtcNow.Ticks);
-                byte[] hash = hmac.ComputeHash(input);
-                Buffer.BlockCopy(hash, 0, nonce, 0, 12); // Берем первые 12 байт хеша
-            }
+            RandomNumberGenerator.Fill(nonce);
             return nonce;
         }
 
