@@ -54,13 +54,13 @@ public class S5Client : IDisposable
         var udpResponse = await ConnectTcpAsync(udpRequest);
         _udpClient = new UdpClient();
 
-        if (!string.IsNullOrEmpty(udpResponse.TargetHost))
+        if (udpResponse.EndPoint != null)
         {
-            _udpClient.Connect(udpResponse.TargetHost, udpResponse.TargetPort);
+            _udpClient.Connect(udpResponse.EndPoint);
         }
         else
         {
-            _udpClient.Connect(udpResponse.GetEndPoint());
+            _udpClient.Connect(udpResponse.TargetHost, udpResponse.TargetPort);
         }
     }
 
@@ -81,7 +81,7 @@ public class S5Client : IDisposable
             throw new Exception("Not initialized");
         }
 
-        var message = S5Protocol.WrapUdpDatagram(endPoint, data, _token);
+        var message = S5Protocol.WrapUdpDatagram(endPoint, data);
         await _udpClient.SendAsync(_encryption.EncodeDatagram(message), _token);
     }
 

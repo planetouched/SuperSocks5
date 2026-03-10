@@ -12,11 +12,15 @@ public struct S5Packet
     public byte[] Payload;
     public byte FrameNum;
 
-    public IPEndPoint? GetEndPoint()
+    private IPEndPoint? _endPoint;
+
+    public IPEndPoint? EndPoint => GetEndPoint();
+
+    private IPEndPoint? GetEndPoint()
     {
         if (IpAddress != null)
         {
-            return new IPEndPoint(IpAddress, TargetPort);
+            return _endPoint ??= new IPEndPoint(IpAddress, TargetPort);
         }
 
         return null;

@@ -104,9 +104,12 @@ namespace Tests.Examples
                 new S5Packet { IpAddress = IPAddress.Parse("8.8.8.8"), TargetPort = 53 }, 
                 dnsQuery, new XorHandshakeEncryption());
 
-            Console.WriteLine($"result len: {result.Length}");
 
-            File.WriteAllBytes("dns.bin", result);
+            var packet = await S5Protocol.UnwrapUdpDatagramAsync(result, CancellationToken.None);
+
+            Console.WriteLine($"result len: {packet.Payload.Length}");
+
+            File.WriteAllBytes("dns.bin", packet.Payload);
 
             await Task.Delay(1000);
         }

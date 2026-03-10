@@ -87,7 +87,7 @@ public class S5Server
 
                 if (S5Settings.DebugInfo)
                 {
-                    var endPoint = packet.GetEndPoint();
+                    var endPoint = packet.EndPoint;
 
                     if (endPoint != null)
                     {
@@ -200,7 +200,7 @@ public class S5Server
                 var nextEncryption = pair.encryption;
 
                 var udpBackPacket = await S5Protocol.SendRequestAsync(upstreamStream, nextEncryption, udpPacket, token);
-                using (var udpTunnel = new UdpTunnel(udpBackPacket.GetEndPoint(), prevEncryption, nextEncryption))
+                using (var udpTunnel = new UdpTunnel(udpBackPacket.EndPoint, prevEncryption, nextEncryption))
                 {
                     await S5Protocol.SendOpResultAsync(clientStream, prevEncryption, 0, _settings.RemoteServerAddress, udpTunnel.Port, token);
 

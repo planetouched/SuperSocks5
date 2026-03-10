@@ -64,35 +64,33 @@ public class UdpTunnel : IDisposable
                     if (!upstreamConnected)
                     {
                         upstreamConnected = true;
-                        _ = Task.Run(() => ReceiveUpstreamTask(token), token);
+                        _ = Task.Run(() => ReceiveUpstreamTask(token, true), token);
                     }
 
-                    await _udpUpstream.SendAsync(
-                        _nextEncryption.EncodeDatagram(
-                            _prevEncryption.DecodeDatagram(udpResult.Buffer, token)), token);
+                    await _udpUpstream.SendAsync(_nextEncryption.EncodeDatagram(_prevEncryption.DecodeDatagram(udpResult.Buffer, token)), token);
                 }
                 else
                 {
                     var udpMessage = await S5Protocol.UnwrapUdpDatagramAsync(_prevEncryption.DecodeDatagram(udpResult.Buffer, token), token);
 
-                    if (udpMessage.FrameNum != 0) //no FRAG support
-                    {
-                        continue;
-                    }
+                    // if (udpMessage.FrameNum != 0) //no FRAG support
+                    // {
+                    //     continue;
+                    // }
                         
                     if (!upstreamConnected)
                     {
-                        if (!string.IsNullOrEmpty(udpMessage.TargetHost))
+                        if (udpMessage.EndPoint != null)
                         {
-                            _udpUpstream.Connect(udpMessage.TargetHost, udpMessage.TargetPort);
+                            _udpUpstream.Connect(udpMessage.EndPoint);
                         }
                         else
                         {
-                            _udpUpstream.Connect(udpMessage.GetEndPoint());
+                            _udpUpstream.Connect(udpMessage.TargetHost, udpMessage.TargetPort);
                         }
 
                         upstreamConnected = true;
-                        _ = Task.Run(() => ReceiveUpstreamTask(token), token);
+                        _ = Task.Run(() => ReceiveUpstreamTask(token, false), token);
                     }
 
                     //тут нет шифрования
@@ -106,7 +104,7 @@ public class UdpTunnel : IDisposable
         }
     }
 
-    private async Task ReceiveUpstreamTask(CancellationToken token)
+    private async Task ReceiveUpstreamTask(CancellationToken token, bool proxy)
     {
         try
         {
@@ -114,9 +112,23 @@ public class UdpTunnel : IDisposable
             {
                 var udpResult = await _udpUpstream.ReceiveAsync(token);
 
-                await _udpClient.SendAsync(
-                    _prevEncryption.EncodeDatagram(
-                        _nextEncryption.DecodeDatagram(udpResult.Buffer, token)), token);
+                if (proxy)
+                {
+                    await _udpClient.SendAsync(_prevEncryption.EncodeDatagram(_nextEncryption.DecodeDatagram(udpResult.Buffer, token)), token);
+                }
+                else
+                {
+                    //если это не proxy то добавляем header по RFC, декодировать смысла нет
+
+                    var endPoint = new S5Packet
+                    {
+                        IpAddress = udpResult.RemoteEndPoint.Address,
+                        TargetPort = udpResult.RemoteEndPoint.Port
+                    };
+
+                    var wrapped = S5Protocol.WrapUdpDatagram(endPoint, udpResult.Buffer);
+                    await _udpClient.SendAsync(_prevEncryption.EncodeDatagram(wrapped), token);
+                }
             }
         }
         catch (Exception)

@@ -373,7 +373,7 @@ public static class S5Protocol
         return (true, creds.GetEncryption());
     }
 
-    public static byte[] WrapUdpDatagram(S5Packet endPoint, byte[] payload, CancellationToken token)
+    public static byte[] WrapUdpDatagram(S5Packet endPoint, byte[] payload)
     {
         /*
         +----+------+------+----------+----------+----------+
